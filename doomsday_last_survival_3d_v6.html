@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Doomsday: Last Survival 3D</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#080b10;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:#fff}
+#game{position:fixed;inset:0}
+canvas{display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+.panel{pointer-events:auto;position:absolute;background:rgba(8,12,18,.82);border:1px solid #2b3949;border-radius:16px;backdrop-filter:blur(10px);box-shadow:0 10px 35px rgba(0,0,0,.35)}
+#top{top:14px;left:14px;right:14px;padding:10px 14px;display:flex;gap:16px;align-items:center;justify-content:space-between}
+.title{font-weight:900;letter-spacing:.6px}.muted{color:#a6b1bd;font-size:12px}
+.stats{display:flex;gap:14px;flex-wrap:wrap;font-size:14px}.stats b{color:#ffcf70}
+#left{left:14px;bottom:14px;width:260px;padding:14px}
+#right{right:14px;bottom:14px;width:280px;padding:14px}
+.panelHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.panelHeader h3{margin:0}
+.collapseBtn{width:32px;height:32px;border:1px solid #3b4a5d;background:#151d28;color:#fff;border-radius:9px;cursor:pointer;font-size:18px;display:grid;place-items:center}
+.collapseBtn:hover{background:#202b39}
+.panelBody{display:block}
+.panel.collapsed{width:auto!important;padding:8px!important}
+.panel.collapsed .panelBody{display:none}
+.panel.collapsed .panelHeader h3{display:none}
+.panel.collapsed .collapseBtn{margin:0}
+#left.collapsed{left:14px;bottom:14px}
+#right.collapsed{right:14px;bottom:14px}
+h3{margin:0 0 10px;font-size:15px}
+.btn{width:100%;border:1px solid #36475b;background:#182230;color:#fff;padding:10px 12px;border-radius:12px;margin:6px 0;cursor:pointer;text-align:left;transition:.15s;display:flex;align-items:center;gap:11px}
+.btn:hover{transform:translateY(-1px);background:#202e40}
+.btn:disabled{opacity:.42;cursor:not-allowed;transform:none}
+.btn strong{display:block}.btn small{display:block;color:#aab6c3;margin-top:3px}
+.btnIcon{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:11px;background:#101722;border:1px solid #34465b;font-size:20px;box-shadow:inset 0 0 12px rgba(255,255,255,.03)}
+.btnText{min-width:0}
+.btn.costly .btnIcon{background:#241f12;border-color:#66582d}
+.btn.defense .btnIcon{background:#171f29;border-color:#3c536b}
+.btn.base .btnIcon{background:#1c1b28;border-color:#51466d}
+.btn.wave .btnIcon{background:#2a1717;border-color:#6d3535}
+#centerMsg{position:absolute;left:50%;top:18%;transform:translateX(-50%);text-align:center;font-size:18px;font-weight:800;text-shadow:0 3px 10px #000;pointer-events:none}
+#cross{position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px;border:2px solid rgba(255,255,255,.4);border-radius:50%}
+.bar{height:8px;background:#222d39;border-radius:999px;overflow:hidden;margin-top:6px}.fill{height:100%;background:#51dc88;width:100%}
+#help{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:12px;color:#bac5d0;background:rgba(0,0,0,.45);padding:7px 12px;border-radius:999px}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#2a1720;color:#ff9aab;border:1px solid #5d2836;font-size:12px;font-weight:800}
+@media(max-width:800px){#left{width:220px}#right{width:235px}.stats{gap:7px}.muted{display:none}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="hud">
+  <div id="top" class="panel">
+    <div><div class="title">DOOMSDAY: LAST SURVIVAL 3D</div><div class="muted">Defend the shelter. Kill zombies. Upgrade. Survive each wave.</div></div>
+    <div class="stats">
+      <div>Wave <b id="wave">1</b></div>
+      <div>Scrap <b id="scrap">120</b></div>
+      <div>Base HP <b id="hp">500</b></div>
+      <div>Kills <b id="kills">0</b></div>
+      <div>Threat <b id="threat">1.0×</b></div>
+    </div>
+  </div>
+
+  <div id="left" class="panel">
+    <div class="panelHeader">
+      <h3>Defense Construction</h3>
+      <button class="collapseBtn" data-target="left" title="Minimize defense panel">−</button>
+    </div>
+    <div class="panelBody">
+      <button class="btn defense" id="addTower"><span class="btnIcon">🗼</span><span class="btnText"><strong>Build Gun Tower — 75 scrap</strong><small>Place another automatic defense tower.</small></span></button>
+      <button class="btn costly" id="upgradeDamage"><span class="btnIcon">💥</span><span class="btnText"><strong>Upgrade Tower Damage — 100</strong><small>+8 damage to all towers.</small></span></button>
+      <button class="btn costly" id="upgradeRate"><span class="btnIcon">⚡</span><span class="btnText"><strong>Upgrade Fire Rate — 120</strong><small>All towers fire faster.</small></span></button>
+      <button class="btn costly" id="upgradeRange"><span class="btnIcon">🎯</span><span class="btnText"><strong>Upgrade Range — 90</strong><small>Increase detection radius.</small></span></button>
+    </div>
+  </div>
+
+  <div id="right" class="panel">
+    <div class="panelHeader">
+      <h3>Survival Base</h3>
+      <button class="collapseBtn" data-target="right" title="Minimize base panel">−</button>
+    </div>
+    <div class="panelBody">
+      <div class="badge" id="levelBadge">Shelter Lv.1</div>
+      <button class="btn base" id="repair"><span class="btnIcon">🔧</span><span class="btnText"><strong>Repair Walls — 60</strong><small>Restore 150 base HP.</small></span></button>
+      <button class="btn base" id="upgradeBase"><span class="btnIcon">🏰</span><span class="btnText"><strong>Upgrade Shelter — 160</strong><small>More max HP and stronger defenses.</small></span></button>
+      <button class="btn wave" id="startWave"><span class="btnIcon">☠️</span><span class="btnText"><strong>Start Wave Now</strong><small id="waveHint">Wave starts automatically.</small></span></button>
+      <div style="margin-top:12px;font-size:12px;color:#aeb9c5">Base Integrity</div>
+      <div class="bar"><div class="fill" id="hpbar"></div></div>
+    </div>
+  </div>
+
+  <div id="centerMsg"></div>
+  <div id="cross"></div>
+  <div id="help">Drag mouse = orbit camera · Mouse wheel = zoom · towers fire automatically</div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';
+
+const mount = document.getElementById('game');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1018);
+scene.fog = new THREE.Fog(0x0b1018, 40, 90);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, .1, 200);
+camera.position.set(24,22,27);
+camera.lookAt(0,2,0);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled = true;
+mount.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0x9db7d8,0x2a1a16,1.45));
+const sun = new THREE.DirectionalLight(0xffe0b0,2.1);
+sun.position.set(15,28,8); sun.castShadow=true; scene.add(sun);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(120,120),
+  new THREE.MeshStandardMaterial({color:0x28322a,roughness:1})
+);
+ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+
+const grid = new THREE.GridHelper(120,60,0x405044,0x334137);
+grid.position.y=.02; scene.add(grid);
+
+const baseGroup = new THREE.Group(); scene.add(baseGroup);
+const wallMat = new THREE.MeshStandardMaterial({color:0x6e777f,metalness:.15,roughness:.8});
+const darkMat = new THREE.MeshStandardMaterial({color:0x303840,roughness:.9});
+const redMat = new THREE.MeshStandardMaterial({color:0xa43838});
+const towerMat = new THREE.MeshStandardMaterial({color:0x596b78,metalness:.35,roughness:.55});
+const gunMat = new THREE.MeshStandardMaterial({color:0x20262d,metalness:.55,roughness:.35});
+
+function box(w,h,d,mat,x,y,z){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+  m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;baseGroup.add(m);return m;
+}
+box(11,1.2,11,darkMat,0,.6,0);
+box(11,.7,.5,wallMat,0,1.25,-5.3); box(11,.7,.5,wallMat,0,1.25,5.3);
+box(.5,.7,11,wallMat,-5.3,1.25,0); box(.5,.7,11,wallMat,5.3,1.25,0);
+const bunker=box(4.8,3.2,4.8,wallMat,0,2.1,0);
+const door=box(1.5,2.2,.2,darkMat,0,1.6,2.5);
+const beacon = new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,1.6,10),redMat);
+beacon.position.set(0,4.3,0);beacon.castShadow=true;baseGroup.add(beacon);
+
+const state = {
+  scrap:120, hp:500, maxHp:500, wave:1, kills:0, baseLevel:1,
+  towerDamage:24, towerRate:0.72, towerRange:16, active:false
+};
+
+const towers=[];
+function createTower(x,z){
+  const g=new THREE.Group(); g.position.set(x,0,z); scene.add(g);
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(1.15,1.35,1.1,10),towerMat);base.position.y=.55;base.castShadow=true;g.add(base);
+  const head=new THREE.Mesh(new THREE.BoxGeometry(1.5,.75,1.5),towerMat);head.position.y=1.55;head.castShadow=true;g.add(head);
+  const gunPivot=new THREE.Group();gunPivot.position.y=1.62;g.add(gunPivot);
+  const gun=new THREE.Mesh(new THREE.BoxGeometry(.35,.32,2.5),gunMat);gun.position.z=-1.25;gun.castShadow=true;gunPivot.add(gun);
+  const muzzle=new THREE.Object3D();muzzle.position.set(0,0,-2.55);gunPivot.add(muzzle);
+  towers.push({group:g,pivot:gunPivot,muzzle,lastShot:0});
+}
+createTower(-4.2,-4.2); createTower(4.2,-4.2);
+
+const zombies=[];
+const zombieMat = new THREE.MeshStandardMaterial({color:0x5f7f57});
+const zombieHeadMat = new THREE.MeshStandardMaterial({color:0x849b6a});
+function spawnZombie(isGiant=false){
+  const angle=Math.random()*Math.PI*2;
+  const r=34+Math.random()*10;
+  const g=new THREE.Group();
+  g.position.set(Math.cos(angle)*r,0,Math.sin(angle)*r);
+
+  const bodyMat = isGiant
+    ? new THREE.MeshStandardMaterial({color:0x7f3f35,roughness:.85})
+    : zombieMat;
+  const headMat = isGiant
+    ? new THREE.MeshStandardMaterial({color:0xa85c4a,roughness:.8})
+    : zombieHeadMat;
+
+  const scale = isGiant ? 2.5 : 1;
+  const body=new THREE.Mesh(new THREE.BoxGeometry(.9*scale,1.5*scale,.65*scale),bodyMat);
+  body.position.y=1.15*scale;body.castShadow=true;g.add(body);
+
+  const head=new THREE.Mesh(new THREE.BoxGeometry(.72*scale,.72*scale,.72*scale),headMat);
+  head.position.y=2.25*scale;head.castShadow=true;g.add(head);
+
+  const arm1=new THREE.Mesh(new THREE.BoxGeometry(.25*scale,1.2*scale,.25*scale),bodyMat);
+  arm1.position.set(-.68*scale,1.3*scale,-.15*scale);arm1.rotation.x=-.6;g.add(arm1);
+  const arm2=arm1.clone();arm2.position.x=.68*scale;g.add(arm2);
+
+  if(isGiant){
+    const glow = new THREE.PointLight(0xff5533,1.8,8);
+    glow.position.y=3.5;g.add(glow);
+  }
+
+  scene.add(g);
+
+  // Progressive difficulty:
+  // every wave increases zombie health, damage, and speed.
+  // every 5 waves adds an extra difficulty tier.
+  const tier = Math.floor((state.wave-1)/5);
+  const healthScale = Math.pow(1.105, state.wave-1);
+  const damageScale = Math.pow(1.065, state.wave-1);
+
+  const hp = isGiant
+    ? Math.round((430 + state.wave*38) * healthScale * (1 + tier*.10))
+    : Math.round((58 + state.wave*7) * healthScale * (1 + tier*.07));
+
+  const speed = isGiant
+    ? Math.min(1.15, .34 + state.wave*.012 + tier*.018)
+    : Math.min(2.15, .72 + state.wave*.026 + tier*.035);
+
+  const atk = isGiant
+    ? Math.round((44 + state.wave*1.8) * damageScale * (1 + tier*.08))
+    : Math.round((9 + state.wave*.55) * damageScale * (1 + tier*.06));
+
+  zombies.push({
+    group:g,
+    hp,
+    maxHp:hp,
+    speed,
+    atk,
+    lastHit:0,
+    giant:isGiant
+  });
+}
+
+const bullets=[];
+function shoot(tower,target){
+  const p=new THREE.Vector3(); tower.muzzle.getWorldPosition(p);
+  const mesh=new THREE.Mesh(new THREE.SphereGeometry(.11,8,8),new THREE.MeshBasicMaterial({color:0xffd166}));
+  mesh.position.copy(p);scene.add(mesh);
+  bullets.push({mesh,target,speed:38,damage:state.towerDamage});
+}
+
+const particles=[];
+function burst(pos,color=0xff6644){
+  for(let i=0;i<7;i++){
+    const m=new THREE.Mesh(new THREE.SphereGeometry(.07,5,5),new THREE.MeshBasicMaterial({color}));
+    m.position.copy(pos);scene.add(m);
+    particles.push({m,v:new THREE.Vector3((Math.random()-.5)*3,Math.random()*2.6,(Math.random()-.5)*3),life:.5});
+  }
+}
+
+let spawnRemaining=0, spawnTimer=0;
+let nextWaveCountdown = 0;
+let giantRemaining = 0;
+
+function startWave(){
+  if(state.active || state.hp<=0)return;
+  state.active=true;
+  nextWaveCountdown=0;
+
+  const giantCount = Math.floor(state.wave/10);
+  giantRemaining = giantCount;
+  spawnRemaining = 8 + state.wave*3;
+
+  spawnTimer=0;
+
+  if(giantCount>0){
+    msg(`Wave ${state.wave} · Threat ${getThreatMultiplier()}× · ${giantCount} GIANT zombie${giantCount>1?'s':''} incoming!`,2000);
+  }else{
+    msg(`Wave ${state.wave} begins · Threat ${getThreatMultiplier()}×`,1400);
+  }
+}
+
+function updateWave(dt){
+  if(!state.active){
+    if(state.hp<=0)return;
+
+    if(nextWaveCountdown>0){
+      nextWaveCountdown-=dt;
+      const seconds=Math.max(1,Math.ceil(nextWaveCountdown));
+      document.getElementById('waveHint').textContent=`Next wave starts automatically in ${seconds}s`;
+      if(nextWaveCountdown<=0){
+        startWave();
+      }
+    }
+    return;
+  }
+
+  spawnTimer-=dt;
+
+  if(spawnRemaining>0 && spawnTimer<=0){
+    // On every 10th-wave milestone, add giant zombies.
+    // Wave 10 = 1 giant, Wave 20 = 2, Wave 30 = 3, etc.
+    let makeGiant=false;
+    if(giantRemaining>0){
+      const slotsLeft=spawnRemaining;
+      const chance=Math.min(1, giantRemaining/Math.max(1,slotsLeft));
+      if(Math.random()<chance || slotsLeft<=giantRemaining){
+        makeGiant=true;
+        giantRemaining--;
+      }
+    }
+
+    spawnZombie(makeGiant);
+    spawnRemaining--;
+    spawnTimer = makeGiant ? .9 : .42;
+  }
+
+  if(spawnRemaining===0 && zombies.length===0){
+    state.active=false;
+    const clearedWave=state.wave;
+    const bonus=40+state.wave*15;
+    state.scrap+=bonus;
+    state.wave++;
+
+    nextWaveCountdown=5;
+    msg(`Wave ${clearedWave} cleared! +${bonus} scrap · Next wave in 5s`,2200);
+    updateUI();
+  }
+}
+
+function nearestZombie(pos,range){
+  let best=null,bd=Infinity;
+  for(const z of zombies){
+    const d=pos.distanceTo(z.group.position);
+    if(d<range&&d<bd){bd=d;best=z;}
+  }
+  return best;
+}
+
+function updateTowers(time){
+  for(const t of towers){
+    const target=nearestZombie(t.group.position,state.towerRange);
+    if(target){
+      const targetPos=target.group.position.clone();
+      const dir=targetPos.sub(t.group.position);
+      t.pivot.rotation.y=Math.atan2(-dir.x,-dir.z);
+      if(time-t.lastShot>state.towerRate){
+        shoot(t,target);t.lastShot=time;
+      }
+    }
+  }
+}
+
+function updateBullets(dt){
+  for(let i=bullets.length-1;i>=0;i--){
+    const b=bullets[i];
+    if(!b.target || !zombies.includes(b.target)){
+      scene.remove(b.mesh);bullets.splice(i,1);continue;
+    }
+    const targetPos=b.target.group.position.clone().add(new THREE.Vector3(0,1.4,0));
+    const dir=targetPos.sub(b.mesh.position);
+    const dist=dir.length();
+    if(dist<.5){
+      b.target.hp-=b.damage;
+      burst(b.mesh.position,0xffd166);
+      scene.remove(b.mesh);bullets.splice(i,1);
+      if(b.target.hp<=0){
+        const idx=zombies.indexOf(b.target);
+        if(idx>=0){
+          state.scrap += b.target.giant ? 75 : 12;
+          state.kills++;
+          burst(b.target.group.position.clone().add(new THREE.Vector3(0,1,0)),0x77dd77);
+          scene.remove(b.target.group);zombies.splice(idx,1);
+          updateUI();
+        }
+      }
+    }else{
+      b.mesh.position.add(dir.normalize().multiplyScalar(b.speed*dt));
+    }
+  }
+}
+
+function updateZombies(dt,time){
+  for(let i=zombies.length-1;i>=0;i--){
+    const z=zombies[i];
+    const p=z.group.position;
+    const dist=Math.hypot(p.x,p.z);
+    if(dist>6.3){
+      const dir=new THREE.Vector3(-p.x,0,-p.z).normalize();
+      p.addScaledVector(dir,z.speed*dt);
+      z.group.rotation.y=Math.atan2(dir.x,dir.z);
+      z.group.rotation.z=Math.sin(time*6+i)*.03;
+    }else if(time-z.lastHit>1){
+      z.lastHit=time;
+      state.hp-=z.atk;
+      burst(z.group.position.clone().add(new THREE.Vector3(0,1,0)),0xff4455);
+      if(state.hp<=0){
+        state.hp=0;state.active=false;gameOver();
+      }
+      updateUI();
+    }
+  }
+}
+
+function updateParticles(dt){
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];p.life-=dt;p.v.y-=4*dt;p.m.position.addScaledVector(p.v,dt);
+    if(p.life<=0){scene.remove(p.m);particles.splice(i,1)}
+  }
+}
+
+let msgTimer;
+function msg(s,ms=1200){
+  const el=document.getElementById('centerMsg');el.textContent=s;
+  clearTimeout(msgTimer);msgTimer=setTimeout(()=>el.textContent='',ms);
+}
+
+function spend(cost,fn){
+  if(state.scrap<cost){msg('Not enough scrap');return false}
+  state.scrap-=cost;fn();updateUI();return true;
+}
+
+function costScale(){
+  // Prices rise every wave, with a stronger bump every 5 waves.
+  const tier=Math.floor((state.wave-1)/5);
+  return Math.pow(1.055,state.wave-1) * (1+tier*.08);
+}
+
+function upgradeCost(baseCost){
+  return Math.max(baseCost, Math.round(baseCost*costScale()/5)*5);
+}
+
+function refreshUpgradeButtons(){
+  const costs={
+    addTower:upgradeCost(75),
+    upgradeDamage:upgradeCost(100),
+    upgradeRate:upgradeCost(120),
+    upgradeRange:upgradeCost(90),
+    repair:upgradeCost(60),
+    upgradeBase:upgradeCost(160)
+  };
+
+  document.querySelector('#addTower strong').textContent=`Build Gun Tower — ${costs.addTower} scrap`;
+  document.querySelector('#upgradeDamage strong').textContent=`Upgrade Tower Damage — ${costs.upgradeDamage}`;
+  document.querySelector('#upgradeRate strong').textContent=`Upgrade Fire Rate — ${costs.upgradeRate}`;
+  document.querySelector('#upgradeRange strong').textContent=`Upgrade Range — ${costs.upgradeRange}`;
+  document.querySelector('#repair strong').textContent=`Repair Walls — ${costs.repair}`;
+  document.querySelector('#upgradeBase strong').textContent=`Upgrade Shelter — ${costs.upgradeBase}`;
+}
+
+document.getElementById('addTower').onclick=()=>{
+  spend(upgradeCost(75),()=>{
+    const spots=[[-7,0],[7,0],[0,-7],[-6,6],[6,6],[0,8]];
+    const s=spots[towers.length-2]||[(Math.random()-.5)*15,(Math.random()-.5)*15];
+    createTower(s[0],s[1]);msg('Defense tower built');
+  });
+};
+document.getElementById('upgradeDamage').onclick=()=>spend(upgradeCost(100),()=>{state.towerDamage+=8;msg('Tower damage upgraded')});
+document.getElementById('upgradeRate').onclick=()=>spend(upgradeCost(120),()=>{state.towerRate=Math.max(.2,state.towerRate*.84);msg('Fire rate upgraded')});
+document.getElementById('upgradeRange').onclick=()=>spend(upgradeCost(90),()=>{state.towerRange+=3;msg('Tower range upgraded')});
+document.getElementById('repair').onclick=()=>spend(upgradeCost(60),()=>{state.hp=Math.min(state.maxHp,state.hp+150);msg('Walls repaired')});
+document.getElementById('upgradeBase').onclick=()=>spend(upgradeCost(160),()=>{
+  state.baseLevel++;state.maxHp+=220;state.hp+=220;
+  bunker.scale.y+=.08;beacon.position.y+=.15;
+  msg('Shelter upgraded');
+});
+document.getElementById('startWave').onclick=startWave;
+
+
+document.querySelectorAll('.collapseBtn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const panel=document.getElementById(btn.dataset.target);
+    const collapsed=panel.classList.toggle('collapsed');
+    btn.textContent=collapsed?'＋':'−';
+    btn.title=collapsed?'Open panel':'Minimize panel';
+  });
+});
+
+function getThreatMultiplier(){
+  const tier=Math.floor((state.wave-1)/5);
+  return (Math.pow(1.105,state.wave-1)*(1+tier*.07)).toFixed(1);
+}
+
+function updateUI(){
+  document.getElementById('wave').textContent=state.wave;
+  document.getElementById('scrap').textContent=Math.floor(state.scrap);
+  document.getElementById('hp').textContent=Math.max(0,Math.floor(state.hp));
+  document.getElementById('kills').textContent=state.kills;
+  document.getElementById('threat').textContent=getThreatMultiplier()+'×';
+  document.getElementById('levelBadge').textContent=`Shelter Lv.${state.baseLevel}`;
+  document.getElementById('hpbar').style.width=(state.hp/state.maxHp*100)+'%';
+  if(!state.active && nextWaveCountdown<=0){
+    const gc=Math.floor(state.wave/10);
+    document.getElementById('waveHint').textContent=
+      `${8+state.wave*3} zombies incoming${gc>0 ? ` · ${gc} giant${gc>1?'s':''}` : ''}.`;
+  }
+  document.getElementById('startWave').disabled=state.active || state.hp<=0;
+  refreshUpgradeButtons();
+}
+updateUI();
+nextWaveCountdown=2;
+msg('Prepare yourself — Wave 1 starts automatically!',1600);
+
+function gameOver(){
+  msg('BASE DESTROYED — refresh page to restart',999999);
+  for(const z of zombies) z.speed=0;
+}
+
+let yaw=.72,pitch=.68,dist=36,drag=false,lastX=0,lastY=0;
+renderer.domElement.addEventListener('pointerdown',e=>{drag=true;lastX=e.clientX;lastY=e.clientY});
+addEventListener('pointerup',()=>drag=false);
+addEventListener('pointermove',e=>{
+  if(!drag)return;
+  yaw-=(e.clientX-lastX)*.006;
+  pitch=Math.max(.28,Math.min(1.25,pitch+(e.clientY-lastY)*.005));
+  lastX=e.clientX;lastY=e.clientY;
+});
+renderer.domElement.addEventListener('wheel',e=>{
+  dist=Math.max(18,Math.min(55,dist+e.deltaY*.02));
+},{passive:true});
+function updateCamera(){
+  const cp=Math.cos(pitch);
+  camera.position.set(Math.sin(yaw)*cp*dist,Math.sin(pitch)*dist,Math.cos(yaw)*cp*dist);
+  camera.lookAt(0,1.8,0);
+}
+
+let last=performance.now()/1000;
+function loop(){
+  requestAnimationFrame(loop);
+  const now=performance.now()/1000,dt=Math.min(.033,now-last);last=now;
+  updateCamera();
+  if(state.hp>0){
+    updateWave(dt);updateTowers(now);updateBullets(dt);updateZombies(dt,now);updateParticles(dt);
+  }
+  beacon.rotation.y+=dt;
+  renderer.render(scene,camera);
+}
+loop();
+
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
